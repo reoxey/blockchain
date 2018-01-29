@@ -114,6 +114,7 @@ func AddBlock(doc map[string]interface{}, data string, level int){
     json.Unmarshal(inrec, &ino)
     
 	mongo.Insert(ino)
+	fmt.Println("New Block Added")
 }
 
 func CheckIntegrity(docs []bson.M) bool {
@@ -156,26 +157,26 @@ func CheckIntegrity(docs []bson.M) bool {
 			_computedHash := HashThis(_b1)
 
 			if _hash == _computedHash {
-				fmt.Println("Hash Passed: " + _hash)
+				fmt.Println("Hash Re-computation Passed: " + _hash)
 			} else {
-				fmt.Println("Hash Failed: " + _computedHash)
+				fmt.Println("Hash Re-computation Failed: " + _computedHash)
 				break
 			}
 
 			if prev == _hash {
-				fmt.Println("Hash Matched: " + prev)
+				fmt.Println("Hash Matched with previous block: " + prev)
 				prev = _hash
 			} else {
-				fmt.Println("Hash MisMatched: " + prev + " = " + _hash)
+				fmt.Println("Hash MisMatched with previous block: " + prev + " = " + _hash)
 				break
 			}
 
 			_computedMerkle := MerkleRoot(hash, _merkle)
 			if merkle == _computedMerkle {
-				fmt.Println("Merkle Matched: " + merkle)
+				fmt.Println("Merkle Root Matched: " + merkle)
 				merkle = _merkle
 			} else {
-				fmt.Println("Merkle MisMatched: " + merkle + " = " + _computedMerkle)
+				fmt.Println("Merkle Root MisMatched: " + merkle + " = " + _computedMerkle)
 				break
 			}
 			return true
@@ -200,9 +201,11 @@ func ProofOfWork(level int, _b *block) (string, uint64) {
 		fmt.Print(".")
 	}
 	TimeTaken := time.Since(start)
-	fmt.Print("Block Mined with Hash: "+Hash+" Nonce: ")
+	fmt.Println()
+	fmt.Print("Block Mined with Hash: "+Hash+" \nNonce: ")
 	fmt.Println(_b.Nonce)
 	fmt.Printf("Time Taken to mine: %s", TimeTaken)
+	fmt.Println()
 	return Hash, _b.Nonce
 }
 
@@ -233,8 +236,7 @@ func main() {
 
 	if CheckIntegrity(docs) {
 		value := "{data: 1002}"
-		fmt.Println("New Block Added")
-		AddBlock(doc, value, 5)
+		AddBlock(doc, value, 3)
 	}
 }
 
