@@ -1,2 +1,2 @@
 # blockchain
-BlockChain simple implementaion in GoLang
+BlockChain simple implementaion in GoLang & MongoDB
