@@ -1,5 +1,5 @@
 # blockchain
-BlockChain simple implementaion in GoLang & MongoDB
+BlockChain simple implementaion in Go & MongoDB
 
 ## Parts covered
 - Add new Block in mongo db
