@@ -1,5 +1,5 @@
 /**
-BlockChain working in GoLang & MongoDB
+BlockChain working in Go & MongoDB
 reoxey
  */
 package main
