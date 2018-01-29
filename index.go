@@ -130,18 +130,10 @@ func CheckIntegrity(docs []bson.M) bool {
 	} else {
 		var prev, merkle, hash string
 		for k, v := range docs {
-
+			fmt.Println(k)
 			_prevH, _ := v["PrevHash"].(string)
 			_merkle, _ := v["Merkle"].(string)
 			_hash, _ := v["ThisHash"].(string)
-
-			if k == 0 {
-				prev = _prevH
-				merkle = _merkle
-				hash = _hash
-				continue
-			}
-
 			_index := int(v["Index"].(float64))
 			_data, _ := v["Data"].(string)
 			_time, _ := v["Time"].(string)
@@ -155,32 +147,39 @@ func CheckIntegrity(docs []bson.M) bool {
 				Nonce: _nonce,
 			}
 			_computedHash := HashThis(_b1)
-
 			if _hash == _computedHash {
 				fmt.Println("Hash Re-computation Passed: " + _hash)
 			} else {
 				fmt.Println("Hash Re-computation Failed: " + _computedHash)
-				break
+				return false
+			}
+
+			if k == 0 {
+				prev = _prevH
+				merkle = _merkle
+				hash = _hash
+				continue
 			}
 
 			if prev == _hash {
 				fmt.Println("Hash Matched with previous block: " + prev)
-				prev = _hash
 			} else {
 				fmt.Println("Hash MisMatched with previous block: " + prev + " = " + _hash)
-				break
+				return false
 			}
+			prev = _prevH
 
 			_computedMerkle := MerkleRoot(hash, _merkle)
 			if merkle == _computedMerkle {
 				fmt.Println("Merkle Root Matched: " + merkle)
-				merkle = _merkle
 			} else {
 				fmt.Println("Merkle Root MisMatched: " + merkle + " = " + _computedMerkle)
-				break
+				return false
 			}
-			return true
+			merkle = _merkle
+			hash = _hash
 		}
+		return true
 	}
 	return false
 }
@@ -239,5 +238,3 @@ func main() {
 		AddBlock(doc, value, 3)
 	}
 }
-
-//time.Now().Format(time.RFC850)
