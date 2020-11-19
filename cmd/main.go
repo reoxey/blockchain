@@ -15,5 +15,7 @@ func main() {
 		log.Fatalln(e)
 	}
 
-	chn.Add("reoxey", "johhny", "Enjoy!", 100)
+	if e = chn.Add("reoxey", "johhny", "Enjoy!", 100); e != nil {
+		log.Fatalln(e)
+	}
 }

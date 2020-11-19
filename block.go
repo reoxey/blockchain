@@ -39,8 +39,13 @@ type genesis struct {
 }
 
 type Chainer interface {
-	Add(from, to, data string, amt float64)
+	Add(from, to, data string, amt float64) error
 }
+
+var (
+	ErrIntegrityFailed   = errors.New("blockchain: integrity failed")
+	ErrProofOfWorkFailed = errors.New("blockchain: proof of work return false")
+)
 
 func Init() (Chainer, error) {
 
@@ -60,8 +65,35 @@ func Init() (Chainer, error) {
 	return &c, nil
 }
 
-func (c Chain) Add(from, to, data string, amt float64) {
-	// TODO
+func (c Chain) Add(from, to, data string, amt float64) error {
+	b := c.block
+
+	b.Index++
+	b.PrevHash = b.ThisHash
+	b.From = from
+	b.To = to
+	b.Data = data
+	b.Amount = amt
+	b.Time = time.Now().String()
+	b.ThisHash = hashThis(b)
+
+	fmt.Printf("%+v\n", b)
+
+	if !c.checkIntegrity() {
+		return ErrIntegrityFailed
+	}
+
+	if b.proofOfWork() {
+		if e := c.put(b.ThisHash); e != nil {
+			return e
+		}
+		if e := c.put("LAST"); e != nil {
+			return e
+		}
+		return nil
+	}
+
+	return ErrProofOfWorkFailed
 }
 
 func (c *Chain) genesis() error {
@@ -86,7 +118,7 @@ func (c *Chain) genesis() error {
 		Nonce:    g.Nonce,
 		Incent:   g.Incent,
 	}
-	if e = b.put(c.db, "GENESIS"); e != nil {
+	if e = c.put("GENESIS"); e != nil {
 		return e
 	}
 
@@ -118,7 +150,7 @@ func (c *Chain) genesis() error {
 		hash = hashThis(b)
 		b.ThisHash = hash
 
-		if e = b.put(c.db, hash); e != nil {
+		if e = c.put(hash); e != nil {
 			return e
 		}
 		x++
@@ -132,10 +164,10 @@ func (c *Chain) genesis() error {
 		Incent:   g.Incent,
 	}
 	b.ThisHash = hashThis(b)
-	if e = b.put(c.db, b.ThisHash); e != nil {
+	if e = c.put(b.ThisHash); e != nil {
 		return e
 	}
-	if e = b.put(c.db, "LAST"); e != nil {
+	if e = c.put("LAST"); e != nil {
 		return e
 	}
 	c.block = b
@@ -143,16 +175,16 @@ func (c *Chain) genesis() error {
 	return nil
 }
 
-func (b block) put(db *redis.Conn, k string) error {
+func (c *Chain) put(k string) error {
 
-	s, e := json.Marshal(b)
+	s, e := json.Marshal(c.block)
 	if e != nil {
 		return e
 	}
 
 	fmt.Println(string(s))
 
-	if e = db.Set(k, string(s)); e != nil {
+	if e = c.db.Set(k, string(s)); e != nil {
 		return e
 	}
 
@@ -177,5 +209,13 @@ func (c *Chain) getState() bool {
 
 	c.block = b
 
+	return true
+}
+
+func (c *Chain) checkIntegrity() bool {
+	return true
+}
+
+func (b *block) proofOfWork() bool {
 	return true
 }
