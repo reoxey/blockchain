@@ -48,7 +48,7 @@ func (u User) Balance() float64 {
 	var amt float64
 	k := "LAST"
 
-	for k != "GENESIS" {
+	for b.Index != 1 {
 		if e := u.db.GetJSON(k, &b); e != nil {
 			return amt
 		}
@@ -68,5 +68,9 @@ func (u User) Balance() float64 {
 }
 
 func (u User) Transfer(addr Address) {
-	// TODO
+	// TODO with gRPC
+}
+
+func (u User) TransferWithData(addr Address) {
+	// TODO with gRPC
 }
