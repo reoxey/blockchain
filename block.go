@@ -14,21 +14,23 @@ import (
 )
 
 type Chain struct {
-	block
+	Block
 	db *redis.Conn
 }
 
-type block struct {
-	Index    int
-	From     string
-	To       string
-	Data     string
-	Time     string
-	Amount   float64
-	Incent   float64
-	ThisHash string
-	PrevHash string
-	Nonce    int
+type Block struct {
+	Index     int
+	From      string
+	To        string
+	Data      string
+	Time      string
+	Amount    float64
+	Incent    float64
+	ThisHash  string
+	PrevHash  string
+	Nonce     int
+	Proof     string
+	Iteration int
 }
 
 type genesis struct {
@@ -43,8 +45,10 @@ type Chainer interface {
 }
 
 var (
-	ErrIntegrityFailed   = errors.New("blockchain: integrity failed")
-	ErrProofOfWorkFailed = errors.New("blockchain: proof of work return false")
+	ErrIntegrityFailed    = errors.New("blockchain: integrity failed")
+	ErrProofOfWorkFailed  = errors.New("blockchain: proof of work return false")
+	ErrFromToSame         = errors.New("blockchain: from and to addresses are same")
+	ErrInvalidUserAddress = errors.New("blockchain: invalid or empty user account address")
 )
 
 func Init() (Chainer, error) {
@@ -66,7 +70,15 @@ func Init() (Chainer, error) {
 }
 
 func (c Chain) Add(from, to, data string, amt float64) error {
-	b := c.block
+
+	if from == to {
+		return ErrFromToSame
+	}
+	if from == "" || to == "" {
+		return ErrInvalidUserAddress
+	}
+
+	b := c.Block
 
 	b.Index++
 	b.PrevHash = b.ThisHash
@@ -83,11 +95,11 @@ func (c Chain) Add(from, to, data string, amt float64) error {
 		return ErrIntegrityFailed
 	}
 
-	if b.proofOfWork() {
-		if e := c.put(b.ThisHash); e != nil {
+	if proofOfWork(b) {
+		if e := put(b, c.db, b.ThisHash); e != nil {
 			return e
 		}
-		if e := c.put("LAST"); e != nil {
+		if e := put(b, c.db, "LAST"); e != nil {
 			return e
 		}
 		return nil
@@ -111,14 +123,14 @@ func (c *Chain) genesis() error {
 
 	hash := fmt.Sprintf("%x", sha256.Sum256(j))
 
-	b := block{
+	b := Block{
 		Data:     "GENESIS",
 		Time:     g.Date,
 		ThisHash: hash,
 		Nonce:    g.Nonce,
 		Incent:   g.Incent,
 	}
-	if e = c.put("GENESIS"); e != nil {
+	if e = put(b, c.db, "GENESIS"); e != nil {
 		return e
 	}
 
@@ -135,7 +147,7 @@ func (c *Chain) genesis() error {
 			amt = 0
 		}
 
-		b := block{
+		b := Block{
 			Index:    x,
 			From:     "LORD",
 			To:       k,
@@ -150,13 +162,13 @@ func (c *Chain) genesis() error {
 		hash = hashThis(b)
 		b.ThisHash = hash
 
-		if e = c.put(hash); e != nil {
+		if e = put(b, c.db, hash); e != nil {
 			return e
 		}
 		x++
 	}
 
-	b = block{
+	b = Block{
 		Index:    x,
 		Time:     time.Now().String(),
 		PrevHash: hash,
@@ -164,41 +176,41 @@ func (c *Chain) genesis() error {
 		Incent:   g.Incent,
 	}
 	b.ThisHash = hashThis(b)
-	if e = c.put(b.ThisHash); e != nil {
+	if e = put(b, c.db, b.ThisHash); e != nil {
 		return e
 	}
-	if e = c.put("LAST"); e != nil {
+	if e = put(b, c.db, "LAST"); e != nil {
 		return e
 	}
-	c.block = b
+	c.Block = b
 
 	return nil
 }
 
-func (c *Chain) put(k string) error {
+func put(b Block, db *redis.Conn, k string) error {
 
-	s, e := json.Marshal(c.block)
+	s, e := json.Marshal(b)
 	if e != nil {
 		return e
 	}
 
 	fmt.Println(string(s))
 
-	if e = c.db.Set(k, string(s)); e != nil {
+	if e = db.Set(k, string(s)); e != nil {
 		return e
 	}
 
 	return nil
 }
 
-func hashThis(_b block) string {
+func hashThis(_b Block) string {
 	buff := new(bytes.Buffer)
 	gob.NewEncoder(buff).Encode(_b)
 	return fmt.Sprintf("%x", sha256.Sum256(buff.Bytes()))
 }
 
 func (c *Chain) getState() bool {
-	var b block
+	var b Block
 	if e := c.db.GetJSON("LAST", &b); e != nil {
 		return false
 	}
@@ -207,7 +219,7 @@ func (c *Chain) getState() bool {
 		return false
 	}
 
-	c.block = b
+	c.Block = b
 
 	return true
 }
@@ -216,6 +228,6 @@ func (c *Chain) checkIntegrity() bool {
 	return true
 }
 
-func (b *block) proofOfWork() bool {
+func proofOfWork(b Block) bool {
 	return true
 }

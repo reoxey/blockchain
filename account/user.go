@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	block "github.com/reoxey/blockchain"
 	"github.com/reoxey/blockchain/redis"
 )
 
@@ -16,6 +17,7 @@ type User struct {
 }
 
 type Account interface {
+	Balance() float64
 	Transfer(Address)
 }
 
@@ -39,6 +41,30 @@ func NewWithAddress(addr Address) (Account, error) {
 	}
 
 	return u, nil
+}
+
+func (u User) Balance() float64 {
+	b := block.Block{}
+	var amt float64
+	k := "LAST"
+
+	for k != "GENESIS" {
+		if e := u.db.GetJSON(k, &b); e != nil {
+			return amt
+		}
+		k = b.PrevHash
+		if b.From == string(u.Addr) && b.To == string(u.Addr) {
+			continue
+		}
+		if b.From == string(u.Addr) && b.To != "" {
+			amt -= b.Amount
+		}
+		if b.To == string(u.Addr) && b.From != "" {
+			amt += b.Amount
+		}
+	}
+
+	return amt
 }
 
 func (u User) Transfer(addr Address) {
