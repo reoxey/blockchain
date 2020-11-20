@@ -2,6 +2,7 @@ package account
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -13,7 +14,9 @@ type Address string
 
 type User struct {
 	db   *redis.Conn
-	Addr Address
+	Name string
+	Addr string
+	Date string
 }
 
 type Account interface {
@@ -21,26 +24,66 @@ type Account interface {
 	Transfer(Address)
 }
 
-func New() (Account, error) {
+func New(name string) (Account, error) {
 
 	d := []byte(time.Now().String())
 
+	addr := fmt.Sprintf("%x", sha256.Sum224(d))
+
 	u := User{
-		db:   redis.Connect("127.0.0.1"),
-		Addr: Address(fmt.Sprintf("%x", sha256.Sum224(d))),
+		Name: name,
+		Date: time.Now().String(),
+		Addr: addr,
 	}
+
+	b, e := json.Marshal(&u)
+	if e != nil {
+		return nil, e
+	}
+	db := redis.Connect("127.0.0.1")
+	if e = db.Set(addr, string(b)); e != nil {
+		return nil, e
+	}
+
+	u.db = db
 
 	return u, nil
 }
 
-func NewWithAddress(addr Address) (Account, error) {
+func NewWithAddress(addr string, name string) (Account, error) {
 
 	u := User{
-		db:   redis.Connect("127.0.0.1"),
+		Name: name,
+		Date: time.Now().String(),
 		Addr: addr,
 	}
 
+	b, e := json.Marshal(&u)
+	if e != nil {
+		return nil, e
+	}
+	db := redis.Connect("127.0.0.1")
+	if e = db.Set(addr, string(b)); e != nil {
+		return nil, e
+	}
+
+	u.db = db
+
 	return u, nil
+}
+
+func Get(addr string) (Account, bool) {
+
+	db := redis.Connect("127.0.0.1")
+
+	var u *User
+	if e := db.GetJSON(addr, &u); e != nil {
+		return nil, false
+	}
+
+	u.db = db
+
+	return u, true
 }
 
 func (u User) Balance() float64 {
@@ -53,13 +96,13 @@ func (u User) Balance() float64 {
 			return amt
 		}
 		k = b.PrevHash
-		if b.From == string(u.Addr) && b.To == string(u.Addr) {
+		if b.From == u.Addr && b.To == u.Addr {
 			continue
 		}
-		if b.From == string(u.Addr) && b.To != "" {
+		if b.From == u.Addr && b.To != "" {
 			amt -= b.Amount
 		}
-		if b.To == string(u.Addr) && b.From != "" {
+		if b.To == u.Addr && b.From != "" {
 			amt += b.Amount
 		}
 	}

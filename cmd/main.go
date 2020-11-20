@@ -17,14 +17,18 @@ func main() {
 		log.Fatalln(e)
 	}
 
-	acc, e := account.NewWithAddress("reoxey")
-	if e != nil {
-		log.Fatalln(e)
+	acc, ok := account.Get("reoxey")
+
+	if !ok {
+		acc, e = account.NewWithAddress("reoxey", "Reo")
+		if e != nil {
+			log.Fatalln(e)
+		}
 	}
 
 	fmt.Println(acc.Balance())
 
-	if e = chn.Add("reoxey", "johhny", "Enjoy!", 100); e != nil {
+	if e = chn.Add("reoxey", "johnny", "Enjoy!", 100); e != nil {
 		log.Fatalln(e)
 	}
 }
